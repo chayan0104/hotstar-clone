@@ -62,7 +62,15 @@ pipeline {
 
         stage('Trivy Filesystem Scan') {
             steps {
-                sh 'trivy fs . > trivyfs.txt'
+                sh '''
+                docker run --rm \
+                -v $PWD:/workspace \
+                aquasec/trivy:canary fs /workspace \
+                --severity HIGH,CRITICAL \
+                --exit-code 1 \
+                --format table \
+                -o trivyfs.txt
+                '''
             }
         }
 
@@ -82,7 +90,15 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image $IMAGE_NAME > trivyimage.txt'
+                sh '''
+                docker run --rm \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                aquasec/trivy:canary image mechayan97/hotstar:latest \
+                --severity HIGH,CRITICAL \
+                --exit-code 1 \
+                --format table \
+                -o trivyimage.txt
+                '''
             }
         }
 
