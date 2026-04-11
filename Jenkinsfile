@@ -11,24 +11,19 @@ pipeline {
         GIT_BRANCH = 'main'
         PROJECT_NAME = 'hotstar-clone'
         DOCKER_REPO = 'mechayan97'
-
        //TAG = "${BUILD_NUMBER}"
         TAG="latest"
         IMAGE_NAME = "${DOCKER_REPO}/${PROJECT_NAME}:${TAG}"
-
         APP_PORT = '3000'
-
         SCANNER_HOME = tool 'sonar-scanner'
     }
 
     stages {
-
         stage('Clean Workspace') {
             steps {
                 cleanWs()
             }
         }
-
         stage('Checkout Code') {
             steps {
                 git branch: "${GIT_BRANCH}",
@@ -36,7 +31,6 @@ pipeline {
                 url: "${GIT_REPO}"
             }
         }
-
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
@@ -48,13 +42,11 @@ pipeline {
                 }
             }
         }
-
         stage('Install Dependencies') {
             steps {
                 sh 'npm install || true'
             }
         }
-
         stage('OWASP Dependency Scan') {
             steps {
                 dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit',
@@ -63,7 +55,6 @@ pipeline {
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-
         stage('Trivy Filesystem Scan') {
             steps {
                 sh '''
@@ -74,7 +65,6 @@ pipeline {
                 '''
             }
         }
-
         stage('Docker Build') {
             steps {
                 sh """
@@ -82,7 +72,6 @@ pipeline {
                 """
             }
         }
-
         stage('Docker Push') {
             steps {
                 script {
@@ -92,7 +81,6 @@ pipeline {
                 }
             }
         }
-
         stage('Trivy Image Scan') {
             steps {
                 sh """
@@ -103,7 +91,6 @@ pipeline {
                 """
             }
         }
-
         stage('Deploy Container') {
             steps {
                 sh """
@@ -113,18 +100,14 @@ pipeline {
             }
         }
     }
-
     post {
         always {
             emailext(
                 subject: "PIPELINE: ${currentBuild.currentResult}",
                 body: """
                 Project: ${PROJECT_NAME}
-
                 Build Number: ${BUILD_NUMBER}
-
                 Status: ${currentBuild.currentResult}
-
                 Build URL: ${BUILD_URL}
                 """,
                 to: 'chayansamanta8@gmail.com',
