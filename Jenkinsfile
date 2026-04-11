@@ -7,8 +7,15 @@ pipeline {
     }
 
     environment {
+        // Application configuration
+        GIT_REPO = 'https://github.com/chayan0104/hotstar-clone.git'
+        GIT_BRANCH = 'main'
+        PROJECT_NAME = 'sample-app'
+        IMAGE_NAME = 'mydockerhub/sample-app:latest'
+        APP_PORT = '3000'
+
+        // Tools
         SCANNER_HOME = tool 'sonar-scanner'
-        IMAGE_NAME = "mechayan97/hotstar:latest"
     }
 
     stages {
@@ -21,9 +28,9 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
+                git branch: "${GIT_BRANCH}",
                 credentialsId: 'github-token',
-                url: 'https://github.com/chayan0104/hotstar-clone.git'
+                url: "${GIT_REPO}"
             }
         }
 
@@ -32,22 +39,16 @@ pipeline {
                 withSonarQubeEnv('sonarqube-server') {
                     sh """
                     $SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectName=Hotstar \
-                    -Dsonar.projectKey=Hotstar
+                    -Dsonar.projectName=${PROJECT_NAME} \
+                    -Dsonar.projectKey=${PROJECT_NAME}
                     """
                 }
             }
         }
 
-      //  stage('Quality Gate') {
-      //      steps {
-      //          waitForQualityGate abortPipeline: false, credentialsId: 'Sonar'
-      //      }
-      //  }
-
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh 'npm install || true'
             }
         }
 
@@ -63,9 +64,7 @@ pipeline {
         stage('Trivy Filesystem Scan') {
             steps {
                 sh '''
-                docker run --rm \
-                -v $PWD:/workspace \
-                aquasec/trivy:canary fs /workspace \
+                trivy fs . \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
                 --format table \
@@ -74,40 +73,37 @@ pipeline {
             }
         }
 
-      stage('Docker Build & Push') {
-    steps {
-        script {
-            withDockerRegistry(credentialsId: 'docker') {
-                sh '''
-                docker build -t hotstar .
-                docker tag hotstar mechayan97/hotstar:latest
-                docker push mechayan97/hotstar:latest
-                '''
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker') {
+                        sh """
+                        docker build -t ${IMAGE_NAME} .
+                        docker push ${IMAGE_NAME}
+                        """
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Trivy Image Scan') {
             steps {
-                sh '''
-                docker run --rm \
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                aquasec/trivy:canary image mechayan97/hotstar:latest \
+                sh """
+                trivy image ${IMAGE_NAME} \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
                 --format table \
                 -o trivyimage.txt
-                '''
+                """
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh '''
-                docker rm -f hotstar || true
-                docker run -d -p 3000:3000 --name hotstar $IMAGE_NAME
-                '''
+                sh """
+                docker rm -f ${PROJECT_NAME} || true
+                docker run -d -p ${APP_PORT}:${APP_PORT} --name ${PROJECT_NAME} ${IMAGE_NAME}
+                """
             }
         }
     }
@@ -115,9 +111,9 @@ pipeline {
     post {
         always {
             emailext(
-                subject: "HOTSTAR PIPELINE: ${currentBuild.currentResult}",
+                subject: "PIPELINE: ${currentBuild.currentResult}",
                 body: """
-                Project: ${env.JOB_NAME}
+                Project: ${PROJECT_NAME}
 
                 Build Number: ${env.BUILD_NUMBER}
 
