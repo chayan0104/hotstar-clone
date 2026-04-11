@@ -7,14 +7,17 @@ pipeline {
     }
 
     environment {
-        // Application configuration
         GIT_REPO = 'https://github.com/chayan0104/hotstar-clone.git'
         GIT_BRANCH = 'main'
-        PROJECT_NAME = 'sample-app'
-        IMAGE_NAME = 'mydockerhub/sample-app:latest'
+        PROJECT_NAME = 'hotstar-clone'
+        DOCKER_REPO = 'mechayan97'
+
+       //TAG = "${BUILD_NUMBER}"
+        TAG="latest"
+        IMAGE_NAME = "${DOCKER_REPO}/${PROJECT_NAME}:${TAG}"
+
         APP_PORT = '3000'
 
-        // Tools
         SCANNER_HOME = tool 'sonar-scanner'
     }
 
@@ -38,7 +41,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
                     sh """
-                    $SCANNER_HOME/bin/sonar-scanner \
+                    ${SCANNER_HOME}/bin/sonar-scanner \
                     -Dsonar.projectName=${PROJECT_NAME} \
                     -Dsonar.projectKey=${PROJECT_NAME}
                     """
@@ -67,20 +70,24 @@ pipeline {
                 trivy fs . \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
-                --format table \
                 -o trivyfs.txt
                 '''
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build') {
+            steps {
+                sh """
+                docker build -t ${IMAGE_NAME} .
+                """
+            }
+        }
+
+        stage('Docker Push') {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker') {
-                        sh """
-                        docker build -t ${IMAGE_NAME} .
-                        docker push ${IMAGE_NAME}
-                        """
+                        sh "docker push ${IMAGE_NAME}"
                     }
                 }
             }
@@ -92,7 +99,6 @@ pipeline {
                 trivy image ${IMAGE_NAME} \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
-                --format table \
                 -o trivyimage.txt
                 """
             }
@@ -115,11 +121,11 @@ pipeline {
                 body: """
                 Project: ${PROJECT_NAME}
 
-                Build Number: ${env.BUILD_NUMBER}
+                Build Number: ${BUILD_NUMBER}
 
                 Status: ${currentBuild.currentResult}
 
-                Build URL: ${env.BUILD_URL}
+                Build URL: ${BUILD_URL}
                 """,
                 to: 'chayansamanta8@gmail.com',
                 attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
