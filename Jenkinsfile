@@ -68,11 +68,13 @@ pipeline {
         }
         stage('Trivy Filesystem Scan') {
             steps {
-                sh '''
+                sh """
                 trivy fs . \
                 --severity HIGH,CRITICAL \
                 -o trivyfs.txt
-                '''
+
+                echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
+                """
             }
         }
         stage('Docker Build') {
@@ -98,6 +100,8 @@ pipeline {
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
                 -o trivyimage.txt
+                
+                echo "Report saved at: ${WORKSPACE}/trivyimage.txt"
                 """
             }
         }
