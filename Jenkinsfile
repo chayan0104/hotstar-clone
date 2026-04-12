@@ -19,30 +19,30 @@ pipeline {
     }
 
     stages {
-        stage('Clean Workspace') {
-            steps {
-                cleanWs()
-            }
-        }
-        stage('Checkout Code') {
-            steps {
-                git branch: "${GIT_BRANCH}",
-                credentialsId: 'github-token',
-                url: "${GIT_REPO}"
-            }
-        }
+       // stage('Clean Workspace') {
+       //     steps {
+       //         cleanWs()
+       //     }
+       // }
+       // stage('Checkout Code') {
+       //     steps {
+       //         git branch: "${GIT_BRANCH}",
+       //         credentialsId: 'github-token',
+       //         url: "${GIT_REPO}"
+       //     }
+       // }
         stage('SonarQube Scan') {
             steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
+                withSonarQubeEnv('SonarQube') {
+                    sh """
                     $SCANNER_HOME/bin/sonar-scanner \
                     -Dsonar.projectName=$PROJECT_NAME \
                     -Dsonar.projectKey=$PROJECT_NAME \
-                    -Dsonar.token=$SONAR_TOKEN
-                    '''
+                    """
                 }
             }
         }
+
         stage("quality gate"){
            steps {
                 script {
