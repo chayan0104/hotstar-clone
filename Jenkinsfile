@@ -26,26 +26,19 @@ pipeline {
     }
 
     stages {
-        stage('Clean Workspace') {
-            steps {
-                cleanWs()
-            }
-        }
-        stage('Checkout Code') {
+        stage('Git Pull') {
             steps {
                 git branch: "${GIT_BRANCH}",
                 credentialsId: 'github-token',
                 url: "${GIT_REPO}"
             }
         }
-        stage('Install Dependencies') {
+        stage('Node install and Build') {
             steps {
-                sh 'npm ci'
-            }
-        }
-        stage('Build Application') {
-            steps {
-                sh 'npm run build'
+                sh '''
+                npm ci
+                npm run build
+                '''
             }
         }
         stage('SonarQube Scan') {
