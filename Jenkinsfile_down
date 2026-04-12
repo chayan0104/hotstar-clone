@@ -1,0 +1,21 @@
+pipeline {
+
+    agent any
+
+    environment {
+        PROJECT_NAME = 'hotstar-clone'
+    }
+
+    stages {
+
+        stage('Stop Container') {
+            steps {
+                sh """
+                docker stop ${PROJECT_NAME} || true
+                docker rm ${PROJECT_NAME} || true
+                """
+            }
+        }
+
+    }
+}
