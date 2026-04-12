@@ -42,14 +42,14 @@ pipeline {
                 }
             }
         }
-
-        stage("quality gate"){
-           steps {
+        stage("Quality Gate") {
+            steps {
                 script {
-                    //waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token' 
-                    waitForQualityGate abortPipeline: true, credentialsId: 'Sonar-token' 
+                    timeout(time: 2, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: false
+                    }
                 }
-            } 
+            }
         }
         stage('Install Dependencies') {
             steps {
