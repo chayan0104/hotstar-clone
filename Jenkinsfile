@@ -6,6 +6,10 @@ pipeline {
         nodejs 'nodejs'
     }
 
+    options {
+        timeout(time: 25, unit: 'MINUTES')
+    }
+
     environment {
         GIT_REPO = 'https://github.com/chayan0104/hotstar-clone.git'
         GIT_BRANCH = 'main'
@@ -34,11 +38,11 @@ pipeline {
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh """
+                    sh '''
                     $SCANNER_HOME/bin/sonar-scanner \
                     -Dsonar.projectName=$PROJECT_NAME \
-                    -Dsonar.projectKey=$PROJECT_NAME \
-                    """
+                    -Dsonar.projectKey=$PROJECT_NAME
+                    '''
                 }
             }
         }
@@ -53,7 +57,7 @@ pipeline {
         }
         stage('Install Dependencies') {
             steps {
-                sh 'npm install || true'
+                sh 'npm install'
             }
         }
         stage('OWASP Dependency Scan') {
@@ -66,49 +70,53 @@ pipeline {
         }
         stage('Trivy Filesystem Scan') {
             steps {
-                sh """
-                trivy fs . \
-                --severity HIGH,CRITICAL \
-                -o trivyfs.txt
-
-                echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
-                """
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                     timeout(time: 2, unit: 'MINUTES') {
+                       sh '''
+                       trivy fs . \
+                       --severity HIGH,CRITICAL \
+                       -o trivyfs.txt
+       
+                       echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
+                       '''
+                     }
+                }
             }
         }
         stage('Docker Build') {
             steps {
-                sh """
+                sh '''
                 docker build -t ${IMAGE_NAME} .
-                """
-            }
-        }
-        stage('Docker Push') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker') {
-                        sh "docker push ${IMAGE_NAME}"
-                    }
-                }
+                '''
             }
         }
         stage('Trivy Image Scan') {
             steps {
-                sh """
+                sh '''
                 trivy image ${IMAGE_NAME} \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
                 -o trivyimage.txt
                 
                 echo "Report saved at: ${WORKSPACE}/trivyimage.txt"
-                """
+                '''
+            }
+        }
+        stage('Docker Push') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker') {
+                        sh 'docker push ${IMAGE_NAME}'
+                    }
+                }
             }
         }
         stage('Deploy Container') {
             steps {
-                sh """
+                sh '''
                 docker rm -f ${PROJECT_NAME} || true
                 docker run -d -p ${APP_PORT}:${APP_PORT} --name ${PROJECT_NAME} ${IMAGE_NAME}
-                """
+                '''
             }
         }
     }
@@ -116,12 +124,12 @@ pipeline {
         always {
             emailext(
                 subject: "PIPELINE: ${currentBuild.currentResult}",
-                body: """
+                body: '''
                 Project: ${PROJECT_NAME}
                 Build Number: ${BUILD_NUMBER}
                 Status: ${currentBuild.currentResult}
                 Build URL: ${BUILD_URL}
-                """,
+                ''',
                 to: 'chayansamanta8@gmail.com',
                 attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
             )
