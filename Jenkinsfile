@@ -58,12 +58,10 @@ pipeline {
         }
         stage('OWASP Dependency Scan') {
             steps {
-                timeout(time: 2, unit: 'MINUTES') {
                 dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit',
                 odcInstallation: 'dependency-check'
 
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-                }
             }
         }
         stage('Trivy Filesystem Scan') {
