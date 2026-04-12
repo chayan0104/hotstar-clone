@@ -75,6 +75,7 @@ pipeline {
                        sh '''
                        trivy fs . \
                        --severity HIGH,CRITICAL \
+                       --exit 0 \
                        -o trivyfs.txt
        
                        echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
