@@ -119,6 +119,8 @@ pipeline {
                 sh '''
                 docker rm -f ${PROJECT_NAME} || true
                 docker run -d -p ${APP_PORT}:${APP_PORT} --name ${PROJECT_NAME} ${IMAGE_NAME}
+                
+                echo "Container ${PROJECT_NAME} deployed and running on port $HOSTNAME:${APP_PORT}"
                 '''
             }
         }
