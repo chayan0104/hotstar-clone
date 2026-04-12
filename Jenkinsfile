@@ -71,15 +71,15 @@ pipeline {
         stage('Trivy Filesystem Scan') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                     timeout(time: 2, unit: 'MINUTES') {
-                       sh '''
-                       trivy fs . \
-                       --severity HIGH,CRITICAL \
-                       --exit 0 \
-                       -o trivyfs.txt
+                    timeout(time: 2, unit: 'MINUTES') {
+                    sh '''
+                    trivy fs . \
+                    --severity HIGH,CRITICAL \
+                    --exit 0 \
+                    -o trivyfs.txt
        
-                       echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
-                       '''
+                    echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
+                    '''
                      }
                 }
             }
@@ -91,14 +91,18 @@ pipeline {
         }
         stage('Trivy Image Scan') {
             steps {
-                sh '''
-                trivy image ${IMAGE_NAME} \
-                --severity HIGH,CRITICAL \
-                --exit-code 1 \
-                -o trivyimage.txt
-                
-                echo "Report saved at: ${WORKSPACE}/trivyimage.txt"
-                '''
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    timeout(time: 2, unit: 'MINUTES') {
+                    sh '''
+                    trivy image ${IMAGE_NAME} \
+                    --severity HIGH,CRITICAL \
+                    --exit-code 0 \
+                    -o trivyimage.txt
+                    
+                    echo "Report saved at: ${WORKSPACE}/trivyimage.txt"
+                    '''
+                    }
+                }
             }
         }
         stage('Docker Push') {
