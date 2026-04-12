@@ -7,6 +7,9 @@ pipeline {
     }
 
     options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+        timestamps()
         timeout(time: 25, unit: 'MINUTES')
     }
 
@@ -35,6 +38,16 @@ pipeline {
                 url: "${GIT_REPO}"
             }
         }
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        stage('Build Application') {
+            steps {
+                sh 'npm run build'
+            }
+        }
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('SonarQube') {
@@ -55,11 +68,6 @@ pipeline {
                 }
             }
         }
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm install'
-            }
-        }
         stage('OWASP Dependency Scan') {
             steps {
                 dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit',
@@ -75,9 +83,11 @@ pipeline {
                     sh '''
                     trivy fs . \
                     --severity HIGH,CRITICAL \
-                    --exit 0 \
+                    --format table \
+                    --exit-code 0 \
+                    --no-progress \
                     -o trivyfs.txt
-       
+
                     echo "Report saved at: ${WORKSPACE}/trivyfs.txt"
                     '''
                      }
@@ -86,7 +96,7 @@ pipeline {
         }
         stage('Docker Build') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME} .'
+                sh 'docker build --pull -t ${IMAGE_NAME} .'
             }
         }
         stage('Trivy Image Scan') {
@@ -96,9 +106,11 @@ pipeline {
                     sh '''
                     trivy image ${IMAGE_NAME} \
                     --severity HIGH,CRITICAL \
+                    --format table \
                     --exit-code 0 \
+                    --no-progress \
                     -o trivyimage.txt
-                    
+
                     echo "Report saved at: ${WORKSPACE}/trivyimage.txt"
                     '''
                     }
@@ -109,7 +121,11 @@ pipeline {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker') {
-                        sh 'docker push ${IMAGE_NAME}'
+                        sh '''
+                        docker push ${IMAGE_NAME}
+                        docker tag ${IMAGE_NAME} ${DOCKER_REPO}/${PROJECT_NAME}:${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}/${PROJECT_NAME}:${BUILD_NUMBER}
+                        '''
                     }
                 }
             }
@@ -118,8 +134,14 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f ${PROJECT_NAME} || true
-                docker run -d -p ${APP_PORT}:${APP_PORT} --name ${PROJECT_NAME} ${IMAGE_NAME}
-                
+                docker run -d --restart unless-stopped -p ${APP_PORT}:${APP_PORT} --name ${PROJECT_NAME} ${IMAGE_NAME}
+                sleep 10
+                if command -v curl >/dev/null 2>&1; then
+                    curl --fail --silent http://127.0.0.1: > /dev/null
+                else
+                    wget -qO- http://127.0.0.1: > /dev/null
+                fi
+
                 echo "Container ${PROJECT_NAME} deployed and running on port $HOSTNAME:${APP_PORT}"
                 '''
             }
@@ -127,17 +149,20 @@ pipeline {
     }
     post {
         always {
+            archiveArtifacts artifacts: 'trivyfs.txt,trivyimage.txt', allowEmptyArchive: true
             emailext(
                 subject: "PIPELINE: ${currentBuild.currentResult}",
-                body: '''
+                body: """
                 Project: ${PROJECT_NAME}
                 Build Number: ${BUILD_NUMBER}
                 Status: ${currentBuild.currentResult}
                 Build URL: ${BUILD_URL}
-                ''',
+                """,
                 to: 'chayansamanta8@gmail.com',
                 attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
             )
         }
     }
 }
+
+
