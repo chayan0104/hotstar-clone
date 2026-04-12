@@ -19,18 +19,18 @@ pipeline {
     }
 
     stages {
-       // stage('Clean Workspace') {
-       //     steps {
-       //         cleanWs()
-       //     }
-       // }
-       // stage('Checkout Code') {
-       //     steps {
-       //         git branch: "${GIT_BRANCH}",
-       //         credentialsId: 'github-token',
-       //         url: "${GIT_REPO}"
-       //     }
-       // }
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Checkout Code') {
+            steps {
+                git branch: "${GIT_BRANCH}",
+                credentialsId: 'github-token',
+                url: "${GIT_REPO}"
+            }
+        }
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('SonarQube') {
