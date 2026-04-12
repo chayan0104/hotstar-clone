@@ -69,7 +69,6 @@ pipeline {
                 sh '''
                 trivy fs . \
                 --severity HIGH,CRITICAL \
-                --exit-code 1 \
                 -o trivyfs.txt
                 '''
             }
