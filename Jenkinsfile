@@ -33,14 +33,14 @@ pipeline {
         }
         stage('SonarQube Scan') {
             steps {
-                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                     sh """
-                     $SCANNER_HOME/bin/sonar-scanner \
-                     -Dsonar.projectName=${PROJECT_NAME} \
-                     -Dsonar.projectKey=${PROJECT_NAME} \
-                     -Dsonar.login=$SONAR_TOKEN
-                     """
-                 }
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                    $SCANNER_HOME/bin/sonar-scanner \
+                    -Dsonar.projectName=$PROJECT_NAME \
+                    -Dsonar.projectKey=$PROJECT_NAME \
+                    -Dsonar.token=$SONAR_TOKEN
+                    '''
+                }
             }
         }
         stage("quality gate"){
