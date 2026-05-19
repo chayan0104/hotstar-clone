@@ -36,7 +36,7 @@ pipeline {
         stage('Node install and Build') {
             steps {
                 sh '''
-                npm install
+                npm ci
                 npm run build
                 '''
             }
